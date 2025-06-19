@@ -1,9 +1,11 @@
+import sys
 import os
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-import sys
 
+from prompts import system_prompt
+from call_function import available_functions
 
 def main():
     #raise exception if no user prompt
@@ -34,15 +36,23 @@ def main():
 
     messages = [
         types.Content(role="user", parts=[types.Part(text=user_prompt)]),
-    ]
+    ] 
 
     response = client.models.generate_content(
         model=model, 
-        contents=messages
+        contents=messages,
+        config=types.GenerateContentConfig(
+            tools=[available_functions],
+            system_instruction=system_prompt
+        ),
     )
     
     #print response text
-    print(response.text)
+    if len(response.function_calls) > 0:
+        for function_call_part in response.function_calls:
+            print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+    else:
+        print(response.text)
 
     #print verbose options
     prompt_tokens = response.usage_metadata.prompt_token_count
@@ -52,4 +62,5 @@ def main():
         print("Prompt tokens:", prompt_tokens)
         print("Response tokens:", response_tokens)
 
-main()
+if __name__ == "__main__":
+    main()
